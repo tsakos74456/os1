@@ -4,11 +4,19 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include "shared_mem.h"
+
+typedef struct {
+    int dial_id;
+    shared_mem *shmp;
+} thread_args;
 
 
-char buffer[8192];
+// thread stdin -> dialog
 void *read_from_dial_thread(void *args);
 
+
+// thread dialog->stdout
 void *write_to_dial_thread(void *args);
 
 

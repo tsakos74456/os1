@@ -8,21 +8,21 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <string.h>
 
 #define SHM_PATH "/dialogs_shm"
 #define MAX_PROCS 16 //16 participants per dialog
 #define MAX_DIALOGS 16 //8 DIALOG
 #define MAX_PAYLOAD 8092
-#define MAX_MESSAGES 8
 
 #define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
                         } while (0)
 // message
 typedef struct {
-    bool read_by_everyone;
     int sender_pid;
     char payload[MAX_PAYLOAD];
     int readers_total;
+    int message_id;
 } Message;
 
 
@@ -32,18 +32,20 @@ typedef struct {
 
     int dialog_id;
 
-    Message messages[MAX_MESSAGES];
-
+    Message message;
     int participant_pids[MAX_PROCS];
     int participant_count;     //number of particiapants in this dialog
+    
+    sem_t mutex; // protects dialog
+    sem_t empty; // 1 when new message can be written
+    sem_t full;  // 1 when message is ready to read
 } Dialog;
 
 
 typedef struct {
     Dialog dialogs[MAX_DIALOGS];
+    int proc;  //numbe of participants in dials (total)
 
-    pthread_mutex_t mutex;
-    pthread_cond_t  cond;
 } shared_mem;
 
 shared_mem *create_shared_memory(void);
