@@ -13,7 +13,7 @@
 #define SHM_PATH "/dialogs_shm"
 #define MAX_PROCS 16 //16 participants per dialog
 #define MAX_DIALOGS 16 //8 DIALOG
-#define MAX_PAYLOAD 8092
+#define MAX_PAYLOAD 8192
 
 #define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
                         } while (0)
@@ -33,19 +33,20 @@ typedef struct {
     int dialog_id;
 
     Message message;
+
     int participant_pids[MAX_PROCS];
     int participant_count;     //number of particiapants in this dialog
     
     sem_t mutex; // protects dialog
     sem_t empty; // 1 when new message can be written
-    sem_t full;  // 1 when message is ready to read
+
+    sem_t can_read[MAX_PROCS];   // 1 sem for each participant
 } Dialog;
 
 
 typedef struct {
     Dialog dialogs[MAX_DIALOGS];
     int proc;  //numbe of participants in dials (total)
-
 } shared_mem;
 
 shared_mem *create_shared_memory(void);

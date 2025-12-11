@@ -7,9 +7,13 @@
 #define SHM_PATH "/dialogs_shm"
 
 // USE : ./os <num of dialog to participate>
-int enter_dialog(shared_mem *shmp,const int id);
+int enter_dialog(shared_mem *shmp,const int id, thread_args *t_args);
+void destroy_dialogues(thread_args *t_args);
+void destroy_all(shared_mem *shmp);
 
 int main(int argc, char *argv[]){
+
+    
 
     if(argc != 2){
         printf("Incorrect args");
@@ -25,8 +29,16 @@ int main(int argc, char *argv[]){
         printf("Failed memory allocation!\n");
         return -1;
     }
-    t_args->dial_id = enter_dialog(shmp, arg_dial_id);
-    if(t_args->dial_id == -1){
+    
+    if(pipe(t_args->wake_pipe)){
+        printf("Problem with pipe\n");
+        return -2;
+    }
+    
+
+
+    t_args->dial_idx = enter_dialog(shmp, arg_dial_id,t_args);
+    if(t_args->dial_idx == -1){
         printf("Problem in entering the dialog");
         return -1;
     }
@@ -48,47 +60,60 @@ int main(int argc, char *argv[]){
     // check that the last process will destroy the mutexes and free shared mem
     pthread_join(tids[0],NULL);
     pthread_join(tids[1],NULL);
-    // if(shmp->proc == 0){
-        // shm_unlink(SHM_PATH);
-    // }
+
+
+    destroy_dialogues(t_args);
+
+    if(shmp->proc == 0){
+        destroy_all(shmp);
+    }
 
     free(t_args);
     free(tids);
 }
 
 
-int enter_dialog(shared_mem *shmp, const int dial_id){
+int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
     
     // if it already exists find the dialog
     for(int real_pos = 0 ; real_pos < MAX_DIALOGS ; real_pos++){
         Dialog *d = &shmp->dialogs[real_pos];
-        sem_wait(&d->mutex);
+        if(sem_wait(&d->mutex) == -1){
+            errExit("sem_wait");
+        }
 
         if(d->active && d->dialog_id == dial_id){
             
             if(d->participant_count < MAX_PROCS){
+                t_args->my_index = d->participant_count;
                 d->participant_pids[d->participant_count++] = getpid();
-                sem_post(&d->mutex);
+                if(sem_post(&d->mutex) == -1)
+                    errExit("sem_post");
                 return real_pos;
             }
             else{
-                sem_post(&d->mutex);
+                if(sem_post(&d->mutex) == -1)
+                    errExit("sem_post");
                 return -1;
             }
         }
-        sem_post(&d->mutex);
+        if(sem_post(&d->mutex) == -1)
+            errExit("sem_post");
     }
 
     for(int i = 0 ; i < MAX_DIALOGS ; i++){
 
         Dialog *d = &shmp->dialogs[i];
 
-        sem_wait(&d->mutex);
+        if(sem_wait(&d->mutex) == -1)
+            errExit("sem_wait");
+        
 
         if(!(d->active)){
             d->dialog_id = dial_id;
             d->active = 1;
             d->participant_pids[0] = getpid();
+            t_args->my_index = 0;
             d->participant_count = 1;
 
             // initialize messages
@@ -97,11 +122,43 @@ int enter_dialog(shared_mem *shmp, const int dial_id){
             d->message.sender_pid = -1;
             d->message.message_id = 0;
             
-            sem_post(&(d->mutex));
+            if(sem_post(&d->mutex) == -1)
+                errExit("sem_post");
+                
             return i;
         }
-        sem_post(&d->mutex);
+        if(sem_post(&d->mutex) == -1)
+            errExit("sem_post");
 
     }
     return -1;
+}
+
+void destroy_dialogues(thread_args *t_args){
+    
+    t_args->shmp->proc--;
+
+    Dialog *d = &t_args->shmp->dialogs[t_args->dial_idx];
+
+    d->participant_count--;
+    if(d->participant_count == 0){
+        d->active = 0;
+        d->dialog_id = -1;
+    } 
+
+    return;
+}
+
+void destroy_all(shared_mem *shmp){
+    for(int i = 0 ; i < MAX_DIALOGS ; i++){
+        Dialog *d = &shmp->dialogs[i];
+        sem_destroy(&d->empty);
+        sem_destroy(&d->mutex);
+
+        for(int j = 0 ; j < MAX_PROCS ; j++)
+            sem_destroy(&d->can_read[j]);
+    }
+    shm_unlink(SHM_PATH);
+
+    return;
 }

@@ -5,10 +5,13 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include "shared_mem.h"
+#include <poll.h>
 
 typedef struct {
-    int dial_id;
+    int dial_idx; //index in dialogues
     shared_mem *shmp;
+    int my_index;  //index in pids_participants
+    int wake_pipe[2];
 } thread_args;
 
 

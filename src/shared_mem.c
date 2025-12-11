@@ -41,9 +41,12 @@ shared_mem *create_shared_memory(void){
             if (sem_init(&d->empty, 1, 1) == -1)
                 errExit("sem_init empty");
 
-            // full = 0 → κανένα μήνυμα ακόμη
-            if (sem_init(&d->full, 1, 0) == -1)
-                errExit("sem_init full");
+            for (int j = 0; j < MAX_PROCS; j++) {
+                if (sem_init(&d->can_read[j], 1, 0) == -1)
+                    errExit("sem_init can_read");
+            }
+            d->active = 0;
+            d->dialog_id = -1;
         }
 
 
