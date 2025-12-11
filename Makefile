@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -Wall -Wextra -g 
+CFLAGS  = -Wall -Wextra -g -MMD
 
 # Files
 SRCS = src/main.c src/threads.c src/shared_mem.c

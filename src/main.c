@@ -44,11 +44,10 @@ int main(int argc, char *argv[]){
     }
     t_args->shmp  = shmp;
 
-
     // threads for simultaneous communication among the processes 
     pthread_t *tids;
     tids = malloc(2 * sizeof(pthread_t));
-    
+
     // thread stdin -> dialog
     if(pthread_create(&tids[0],NULL,read_from_dial_thread,t_args) != 0)
         perror_exit("pthread_create");
@@ -63,10 +62,8 @@ int main(int argc, char *argv[]){
 
 
     destroy_dialogues(t_args);
-
-    if(shmp->proc == 0){
-        destroy_all(shmp);
-    }
+    close(t_args->wake_pipe[0]);
+    close(t_args->wake_pipe[1]);
 
     free(t_args);
     free(tids);
@@ -78,7 +75,7 @@ int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
     // if it already exists find the dialog
     for(int real_pos = 0 ; real_pos < MAX_DIALOGS ; real_pos++){
         Dialog *d = &shmp->dialogs[real_pos];
-        if(sem_wait(&d->mutex) == -1){
+        if(sem_wait(&d->dial_mutex) == -1){
             errExit("sem_wait");
         }
 
@@ -87,17 +84,17 @@ int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
             if(d->participant_count < MAX_PROCS){
                 t_args->my_index = d->participant_count;
                 d->participant_pids[d->participant_count++] = getpid();
-                if(sem_post(&d->mutex) == -1)
+                if(sem_post(&d->dial_mutex) == -1)
                     errExit("sem_post");
                 return real_pos;
             }
             else{
-                if(sem_post(&d->mutex) == -1)
+                if(sem_post(&d->dial_mutex) == -1)
                     errExit("sem_post");
                 return -1;
             }
         }
-        if(sem_post(&d->mutex) == -1)
+        if(sem_post(&d->dial_mutex) == -1)
             errExit("sem_post");
     }
 
@@ -105,7 +102,7 @@ int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
 
         Dialog *d = &shmp->dialogs[i];
 
-        if(sem_wait(&d->mutex) == -1)
+        if(sem_wait(&d->dial_mutex) == -1)
             errExit("sem_wait");
         
 
@@ -120,14 +117,13 @@ int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
             d->message.payload[0] = '\0';
             d->message.readers_total = 0;
             d->message.sender_pid = -1;
-            d->message.message_id = 0;
             
-            if(sem_post(&d->mutex) == -1)
+            if(sem_post(&d->dial_mutex) == -1)
                 errExit("sem_post");
                 
             return i;
         }
-        if(sem_post(&d->mutex) == -1)
+        if(sem_post(&d->dial_mutex) == -1)
             errExit("sem_post");
 
     }
@@ -136,9 +132,19 @@ int enter_dialog(shared_mem *shmp, const int dial_id, thread_args *t_args){
 
 void destroy_dialogues(thread_args *t_args){
     
+    if(sem_wait(&t_args->shmp->shmp_mutex) == -1)
+            errExit("sem_wait");
+    
     t_args->shmp->proc--;
+    const int procs_remaining = t_args->shmp->proc;
 
+    if(sem_post(&t_args->shmp->shmp_mutex) == -1)
+        errExit("sem_post");
+    
     Dialog *d = &t_args->shmp->dialogs[t_args->dial_idx];
+
+    if(sem_wait(&d->dial_mutex) == -1)
+        errExit("sem_wait");
 
     d->participant_count--;
     if(d->participant_count == 0){
@@ -146,18 +152,27 @@ void destroy_dialogues(thread_args *t_args){
         d->dialog_id = -1;
     } 
 
+    if(sem_post(&d->dial_mutex) == -1)
+            errExit("sem_post");
+
+    if(procs_remaining == 0)
+        destroy_all(t_args->shmp);
+
     return;
 }
 
 void destroy_all(shared_mem *shmp){
     for(int i = 0 ; i < MAX_DIALOGS ; i++){
         Dialog *d = &shmp->dialogs[i];
-        sem_destroy(&d->empty);
-        sem_destroy(&d->mutex);
-
+        sem_destroy(&d->can_send_mess);
+        sem_destroy(&d->dial_mutex);
+        
+        
         for(int j = 0 ; j < MAX_PROCS ; j++)
-            sem_destroy(&d->can_read[j]);
+            sem_destroy(&d->can_be_read[j]);
     }
+    sem_destroy(&shmp->shmp_mutex);
+    munmap(shmp,sizeof(shared_mem));
     shm_unlink(SHM_PATH);
 
     return;

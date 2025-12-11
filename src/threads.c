@@ -36,38 +36,32 @@ void *read_from_dial_thread(void *args){
         }
 
         if(fds[1].revents & POLLIN){
-            read(fds[1].fd,read_buffer,9);
-            read_buffer[9] = '\0';
-            if(!strcmp(read_buffer,"TERMINATE"))
-                break;
+            if (read(fds[1].fd,read_buffer,1) == 1)
+                if((signed char)read_buffer[0] == -1)
+                    break;
         }
 
         if (fds[0].revents & POLLIN) {
             if(fgets(read_buffer, 8192, stdin) != NULL  ) {
                 read_buffer[strcspn(read_buffer, "\n")] = '\0';
 
-                if(sem_wait(&d->empty) == -1)
+                if(sem_wait(&d->can_send_mess) == -1)
                         errExit("sem_wait");  
 
-                if(sem_wait(&d->mutex) == -1)
+                if(sem_wait(&d->dial_mutex) == -1)
                     errExit("sem_wait"); 
 
-                d->message.readers_total = 0;
                 d->message.sender_pid = getpid();
-                d->message.message_id++;
-
+                d->message.readers_total = 0;
                 memcpy(d->message.payload,read_buffer,strlen(read_buffer) + 1);
 
-                int participants = d->participant_count;
-
-                if(!strcmp(read_buffer,"TERMINATE"))
-                    terminated = 1;
-
-                if(sem_post(&d->mutex) == -1)
-                        errExit("sem_post");
-                for (int i = 0; i < participants ; i++)
-                    if(sem_post(&d->can_read[i]) == -1)
+                for (int i = 0; i < d->participant_count ; i++)
+                    if(sem_post(&d->can_be_read[i]) == -1)
                         errExit("sem_post"); 
+
+                if(sem_post(&d->dial_mutex) == -1)
+                        errExit("sem_post");
+                
             }
         }
 
@@ -91,10 +85,10 @@ void *write_to_dial_thread(void *args){
 
     while (!terminated) {
 
-        if(sem_wait(&d->can_read[t_args->my_index]) == -1)
+        if(sem_wait(&d->can_be_read[t_args->my_index]) == -1)
             errExit("sem_wait");
 
-        if(sem_wait(&d->mutex) == -1)
+        if(sem_wait(&d->dial_mutex) == -1)
             errExit("sem_wait");
 
         // don't read till everyone does and don't let the proc read its own message
@@ -102,21 +96,24 @@ void *write_to_dial_thread(void *args){
 
             d->message.readers_total++;
             
-            if(d->participant_count == d->message.readers_total){
-                // after the read is finished clear buffer
-                d->message.payload[0] = '\0';
-                if(sem_post(&d->empty) == -1)
-                    errExit("sem_post");
-            }
 
             if(!strcmp(d->message.payload,"TERMINATE"))
                 terminated = 1;
 
-            if(sem_post(&d->mutex) == -1)
+            
+            if(d->participant_count == d->message.readers_total){
+                // after the read is finished clear buffer
+                d->message.payload[0] = '\0';
+                if(sem_post(&d->can_send_mess) == -1)
+                    errExit("sem_post");
+            }
+            
+            if(sem_post(&d->dial_mutex) == -1)
                     errExit("sem_post");
             
             if (terminated) {
-                write(t_args->wake_pipe[1],"TERMINATE",9);
+                signed char c = -1;
+                write(t_args->wake_pipe[1],&c,1);
             }
                   
             continue;  
@@ -126,25 +123,27 @@ void *write_to_dial_thread(void *args){
         memcpy(buffer,d->message.payload,strlen(d->message.payload) + 1);
 
         d->message.readers_total++;
-        if(d->participant_count == d->message.readers_total){
-            // after the read is finished clear buffer
-            d->message.payload[0] = '\0';
-            if(sem_post(&d->empty) == -1)
-                    errExit("sem_post");
-            
-        }
-            
         
         if(!strcmp(buffer,"TERMINATE"))
             terminated = 1;
 
-        if(sem_post(&d->mutex) == -1)
+        if(d->participant_count == d->message.readers_total){
+            // after the read is finished clear buffer
+            d->message.payload[0] = '\0';
+
+            if(sem_post(&d->can_send_mess) == -1)
+                    errExit("sem_post");
+            
+        }
+
+        if(sem_post(&d->dial_mutex) == -1)
             errExit("sem_post");
 
         printf("%s\n",buffer);
         fflush(stdout);
         if (terminated) {
-           write(t_args->wake_pipe[1],"TERMINATE",9);
+            signed char c = -1;
+            write(t_args->wake_pipe[1],&c,1);
         }
 
     }

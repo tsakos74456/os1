@@ -22,14 +22,12 @@ typedef struct {
     int sender_pid;
     char payload[MAX_PAYLOAD];
     int readers_total;
-    int message_id;
 } Message;
 
 
 // struct for dialog
 typedef struct { 
     bool active;               // 1 = dialog active, 0 = dialog inactive
-
     int dialog_id;
 
     Message message;
@@ -37,16 +35,17 @@ typedef struct {
     int participant_pids[MAX_PROCS];
     int participant_count;     //number of particiapants in this dialog
     
-    sem_t mutex; // protects dialog
-    sem_t empty; // 1 when new message can be written
+    sem_t dial_mutex; // protects dialog
+    sem_t can_send_mess; // 1 when new message can be written
 
-    sem_t can_read[MAX_PROCS];   // 1 sem for each participant
+    sem_t can_be_read[MAX_PROCS];   // sem for each participant so it can be read by the thread
 } Dialog;
 
 
 typedef struct {
     Dialog dialogs[MAX_DIALOGS];
     int proc;  //numbe of participants in dials (total)
+    sem_t shmp_mutex; //protects shared memory
 } shared_mem;
 
-shared_mem *create_shared_memory(void);
+shared_mem *create_shared_memory();
