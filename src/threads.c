@@ -101,14 +101,11 @@ void *write_to_dial_thread(void *args){
             // increase the value which shows how many read it, check for terminate  
             d->message.readers_total++;
             
-
             if(!strcmp(d->message.payload,"TERMINATE"))
                 terminated = 1;
 
             // if u are the last one to read the message post the sem of empty message
             if(d->participant_count == d->message.readers_total){
-                // after the read is finished clear buffer
-                d->message.payload[0] = '\0';
                 if(sem_post(&d->can_send_mess) == -1)
                     errExit("sem_post");
             }
@@ -134,12 +131,8 @@ void *write_to_dial_thread(void *args){
 
         // if u are the last one to read the message post the sem of empty message
         if(d->participant_count == d->message.readers_total){
-            // after the read is finished clear buffer
-            d->message.payload[0] = '\0';
-
             if(sem_post(&d->can_send_mess) == -1)
                     errExit("sem_post");
-            
         }
 
         if(sem_post(&d->dial_mutex) == -1)
