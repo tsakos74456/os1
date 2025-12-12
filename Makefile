@@ -11,7 +11,7 @@ all: $(TARGET)
 
 # Link object files into the executable related to nfs_manager
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ -lpthread
+	$(CC) $(CFLAGS) -o $@ $^ -lpthread -lrt
 
 run: $(TARGET)
 	./$(TARGET) 2
