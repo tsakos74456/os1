@@ -75,10 +75,6 @@ void destroy_dialogues(thread_args *t_args){
     t_args->shmp->proc--;
     if(t_args->shmp->proc == 0)
         last_one = 1;
-
-    if(sem_post(&t_args->shmp->shmp_mutex) == -1)
-        errExit("sem_post");
-    
     Dialog *d = &t_args->shmp->dialogs[t_args->dial_idx];
 
     if(sem_wait(&d->dial_mutex) == -1)
@@ -94,10 +90,14 @@ void destroy_dialogues(thread_args *t_args){
 
     if(sem_post(&d->dial_mutex) == -1)
             errExit("sem_post");
-
+    if(sem_post(&t_args->shmp->shmp_mutex) == -1)
+        errExit("sem_post");
+    
     // if you are the last process among all the dialogs delete the share mem, destroy sem, etc...
     if(last_one)
         destroy_all(t_args->shmp);
+
+
 
     return;
 }

@@ -38,7 +38,7 @@ void *read_from_dial_thread(void *args){
         if(fds[1].revents & POLLIN){
             if (read(fds[1].fd,read_buffer,1) == 1)
                 if((signed char)read_buffer[0] == -1)
-                    break;
+                    terminated = 1;
         }
 
         // read from stdin
