@@ -5,13 +5,16 @@ shared_mem *create_shared_memory(void){
     shared_mem  *shmp;
     bool first_process = 0;
 
+    // BUILD SHARED MEMORY  
     fd = shm_open(SHM_PATH, O_CREAT | O_EXCL | O_RDWR, 0600);
+    // if it exists
     if (fd == -1 && errno == EEXIST){
         
         fd = shm_open(SHM_PATH, O_RDWR, 0600);
         if (fd == -1)
                 errExit("shm_open existing");
     }
+    // create it and set that this is the 1st process so it has to initialize everything
     else{
         first_process = 1;
         if (ftruncate(fd, sizeof(shared_mem)) == -1)
@@ -25,6 +28,7 @@ shared_mem *create_shared_memory(void){
     if (shmp == MAP_FAILED)
         errExit("mmap");
 
+    // initialize semaphores and shared mem
     if(first_process){
 
         memset(shmp, 0, sizeof(shared_mem));  
@@ -41,11 +45,8 @@ shared_mem *create_shared_memory(void){
             if (sem_init(&d->dial_mutex, 1, 1) == -1)
                 errExit("sem_init mutex");
 
-            // empty = 1 → μπορούμε να γράψουμε νέο μήνυμα
             if (sem_init(&d->can_send_mess, 1, 1) == -1)
                 errExit("sem_init empty");
-
-            
 
             for (int j = 0; j < MAX_PROCS; j++) {
                 if (sem_init(&d->can_be_read[j], 1, 0) == -1)
@@ -63,6 +64,7 @@ shared_mem *create_shared_memory(void){
         }
 
     }
+    // increase the amount of total active participants in dialogs
     else{
 
         if(sem_wait(&shmp->shmp_mutex) == -1)

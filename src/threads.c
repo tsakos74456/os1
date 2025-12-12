@@ -6,7 +6,7 @@ void perror_exit(const char *msg){
     exit(EXIT_FAILURE);
 }
 
-
+// stdin -> shared memory
 void *read_from_dial_thread(void *args){
     thread_args *t_args = args;
     Dialog *d = &t_args->shmp->dialogs[t_args->dial_idx];
@@ -20,7 +20,6 @@ void *read_from_dial_thread(void *args){
 
 
     // set poll in order to solve the problem in which fgets blocks so it cannot stop when terminate is written
-
     struct pollfd fds[2];
     fds[0].fd = STDIN_FILENO;
     fds[0].events = POLLIN; // read
@@ -29,22 +28,26 @@ void *read_from_dial_thread(void *args){
     fds[1].events = POLLIN;
 
     while (!terminated){
-        int ret = poll(fds, 2, -1);   // <-- REQUIRED
+        int ret = poll(fds, 2, -1); 
         if (ret < 0) {
             perror("poll");
             break;
         }
 
+        // if the write thread reads terminate it sends a flag of -1 in order to terminate the read thread
         if(fds[1].revents & POLLIN){
             if (read(fds[1].fd,read_buffer,1) == 1)
                 if((signed char)read_buffer[0] == -1)
                     break;
         }
 
+        // read from stdin
         if (fds[0].revents & POLLIN) {
             if(fgets(read_buffer, 8192, stdin) != NULL  ) {
+                // replace change of line with null
                 read_buffer[strcspn(read_buffer, "\n")] = '\0';
 
+                // lock the mutexes and copy the message to shared memory
                 if(sem_wait(&d->can_send_mess) == -1)
                         errExit("sem_wait");  
 
@@ -55,6 +58,7 @@ void *read_from_dial_thread(void *args){
                 d->message.readers_total = 0;
                 memcpy(d->message.payload,read_buffer,strlen(read_buffer) + 1);
 
+                // "wake up" the semaphores for each participant in this dialog
                 for (int i = 0; i < d->participant_count ; i++)
                     if(sem_post(&d->can_be_read[i]) == -1)
                         errExit("sem_post"); 
@@ -91,16 +95,17 @@ void *write_to_dial_thread(void *args){
         if(sem_wait(&d->dial_mutex) == -1)
             errExit("sem_wait");
 
-        // don't read till everyone does and don't let the proc read its own message
+        // if u this process is the one which sends the message don't print it just update the struct
         if (getpid() == d->message.sender_pid) {
 
+            // increase the value which shows how many read it, check for terminate  
             d->message.readers_total++;
             
 
             if(!strcmp(d->message.payload,"TERMINATE"))
                 terminated = 1;
 
-            
+            // if u are the last one to read the message post the sem of empty message
             if(d->participant_count == d->message.readers_total){
                 // after the read is finished clear buffer
                 d->message.payload[0] = '\0';
@@ -119,7 +124,7 @@ void *write_to_dial_thread(void *args){
             continue;  
         }
         
-
+        // u are not the process which sent the message so print and update
         memcpy(buffer,d->message.payload,strlen(d->message.payload) + 1);
 
         d->message.readers_total++;
@@ -127,6 +132,7 @@ void *write_to_dial_thread(void *args){
         if(!strcmp(buffer,"TERMINATE"))
             terminated = 1;
 
+        // if u are the last one to read the message post the sem of empty message
         if(d->participant_count == d->message.readers_total){
             // after the read is finished clear buffer
             d->message.payload[0] = '\0';
@@ -141,6 +147,8 @@ void *write_to_dial_thread(void *args){
 
         printf("Message received: %s\n",buffer);
         fflush(stdout);
+
+        // if u received message of termination just sent to the read thread the flag through the pipe
         if (terminated) {
             signed char c = -1;
             write(t_args->wake_pipe[1],&c,1);

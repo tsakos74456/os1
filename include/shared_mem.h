@@ -46,7 +46,7 @@ typedef struct {
 // SHARED_MEMORY'S STRUCT
 typedef struct {
     Dialog dialogs[MAX_DIALOGS];
-    int proc;  //total number of participants in dials 
+    int proc;  //total number of active participants(processes) in dials 
     sem_t shmp_mutex; //protects shared memory
 } shared_mem;
 
