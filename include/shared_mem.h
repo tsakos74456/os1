@@ -11,13 +11,14 @@
 #include <string.h>
 
 #define SHM_PATH "/dialogs_shm"
-#define MAX_PROCS 16 //16 participants per dialog
-#define MAX_DIALOGS 16 //8 DIALOG
+#define MAX_PROCS 16 // s16 participants per dialog
+#define MAX_DIALOGS 32 // 32 DIALOGUES
 #define MAX_PAYLOAD 8192
 
 #define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
                         } while (0)
-// message
+
+// MESSAGE'S STRUCT
 typedef struct {
     int sender_pid;
     char payload[MAX_PAYLOAD];
@@ -25,7 +26,7 @@ typedef struct {
 } Message;
 
 
-// struct for dialog
+// DIALOG'S STRUCT
 typedef struct { 
     bool active;               // 1 = dialog active, 0 = dialog inactive
     int dialog_id;
@@ -42,10 +43,16 @@ typedef struct {
 } Dialog;
 
 
+// SHARED_MEMORY'S STRUCT
 typedef struct {
     Dialog dialogs[MAX_DIALOGS];
-    int proc;  //numbe of participants in dials (total)
+    int proc;  //total number of participants in dials 
     sem_t shmp_mutex; //protects shared memory
 } shared_mem;
 
+
+// created the shared memory, initializes semaphores and whatever we need
 shared_mem *create_shared_memory();
+
+// destroys the dialogues  when there is noone existing and terminates
+void destroy_all(shared_mem *shmp);

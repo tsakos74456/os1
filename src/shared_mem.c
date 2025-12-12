@@ -27,7 +27,7 @@ shared_mem *create_shared_memory(void){
 
     if(first_process){
 
-        memset(shmp, 0, sizeof(shared_mem));   // MUST BE HERE FIRST
+        memset(shmp, 0, sizeof(shared_mem));  
 
         shmp->proc = 1;
 
@@ -76,4 +76,21 @@ shared_mem *create_shared_memory(void){
     
     close(fd);
     return shmp;
+}
+
+void destroy_all(shared_mem *shmp){
+    for(int i = 0 ; i < MAX_DIALOGS ; i++){
+        Dialog *d = &shmp->dialogs[i];
+        sem_destroy(&d->can_send_mess);
+        sem_destroy(&d->dial_mutex);
+        
+        
+        for(int j = 0 ; j < MAX_PROCS ; j++)
+            sem_destroy(&d->can_be_read[j]);
+    }
+    sem_destroy(&shmp->shmp_mutex);
+    munmap(shmp,sizeof(shared_mem));
+    shm_unlink(SHM_PATH);
+
+    return;
 }

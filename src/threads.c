@@ -139,7 +139,7 @@ void *write_to_dial_thread(void *args){
         if(sem_post(&d->dial_mutex) == -1)
             errExit("sem_post");
 
-        printf("%s\n",buffer);
+        printf("Message received: %s\n",buffer);
         fflush(stdout);
         if (terminated) {
             signed char c = -1;

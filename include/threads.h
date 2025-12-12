@@ -22,5 +22,5 @@ void *read_from_dial_thread(void *args);
 // thread dialog->stdout
 void *write_to_dial_thread(void *args);
 
-
+// error handling-> printinf message
 void perror_exit(const char *msg);

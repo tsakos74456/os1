@@ -2,7 +2,7 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -g -MMD
 
 # Files
-SRCS = src/main.c src/threads.c src/shared_mem.c
+SRCS = src/main.c src/threads.c src/shared_mem.c src/functions_dial.c
 OBJS = $(SRCS:.c=.o)
 TARGET = proc
 
