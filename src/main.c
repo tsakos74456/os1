@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
     
     close(t_args->wake_pipe[0]);
     close(t_args->wake_pipe[1]);
-
+    munmap(shmp,sizeof(shared_mem));
     free(t_args);
     free(tids);
 }

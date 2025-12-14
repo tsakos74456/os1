@@ -91,7 +91,6 @@ void destroy_all(shared_mem *shmp){
             sem_destroy(&d->can_be_read[j]);
     }
     sem_destroy(&shmp->shmp_mutex);
-    munmap(shmp,sizeof(shared_mem));
     shm_unlink(SHM_PATH);
 
     return;
