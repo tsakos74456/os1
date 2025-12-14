@@ -81,6 +81,7 @@ shared_mem *create_shared_memory(void){
 }
 
 void destroy_all(shared_mem *shmp){
+    printf("gregberhb\n\n");
     for(int i = 0 ; i < MAX_DIALOGS ; i++){
         Dialog *d = &shmp->dialogs[i];
         sem_destroy(&d->can_send_mess);

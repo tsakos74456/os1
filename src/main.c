@@ -34,8 +34,16 @@ int main(int argc, char *argv[]){
     
     // enter a dialog
     t_args->dial_idx = enter_dialog(shmp, arg_dial_id,t_args);
+    // if the dialogs or participants are full update user and exit normally
     if(t_args->dial_idx == -1){
         printf("The dialogues or participants are full! Sorry pls try again later.\n");
+        if(sem_wait(&shmp->shmp_mutex) == -1)
+            errExit("sem_wait");
+        shmp->proc--;
+        if(sem_post(&shmp->shmp_mutex) == -1)
+            errExit("sem_post ");
+        munmap(shmp,sizeof(shared_mem));
+        free(t_args);
         return -1;
     }
     t_args->shmp  = shmp;
@@ -59,7 +67,7 @@ int main(int argc, char *argv[]){
 
     if(destroy_dialogues(t_args))
         destroy_all(t_args->shmp);
-    
+
     close(t_args->wake_pipe[0]);
     close(t_args->wake_pipe[1]);
     munmap(shmp,sizeof(shared_mem));
