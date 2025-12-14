@@ -57,7 +57,9 @@ int main(int argc, char *argv[]){
     pthread_join(tids[1],NULL);
 
 
-    destroy_dialogues(t_args);
+    if(destroy_dialogues(t_args))
+        destroy_all(t_args->shmp);
+    
     close(t_args->wake_pipe[0]);
     close(t_args->wake_pipe[1]);
 
