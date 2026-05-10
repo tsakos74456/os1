@@ -1,18 +1,22 @@
-Όνομα: Τσάκωνας Βασίλης 
-ΑΜ: 1115202200245
+To run the program you can use the command make all.
 
+USAGE: ./proc <dial_id>
 
-Για να τρέξει το πρόγραμμα μπορείτε να κάνετε την εντολή make all.
+make run: executes the program as ./proc 2 (it creates/enters the conversation with id = 2)
 
-USE : ./proc <dial_id>
+To create another conversation, you simply run ./proc and provide a dial_id that is not currently active.
 
-make run: εκτελείται το πρόγραμμα με ./proc 2 (φτιάχνει/εισέρχεται στον διάλογο με id = 2)
+To join an existing conversation, you provide as dial_id the number of the conversation you want to enter, which must already have been created by another process.
 
-για να φτιάξει κάποιος έναν άλλο διάλογο απλά γράφει ./proc δίνει ως dial_id έναν νέο αριθμό που να μην είναι active εκέινη τη στιγμή
-για να μπει σε ενα υπάρχον διάλογο θα δώσει ως dial_id τον αριθμό του διαλόγου που θέλει να εισέλθει και θα πρέπει ήδη να υπάρχει από άλο process
+For example, if we run ./proc 5 from 3 terminals:
 
-π.χ. αν από 3 τερματικά εκτελέσουμε το ./proc 5 -> τη 1η φορά θα φτιαχτεί ένας διάλογος με dial_id = 5, 2η και 3η φορά απλά θα εισέρθουν στον διάλογο και θα μπορούν να ανταλλάξουν μυνήματα. Μετά την είσοδο κάποιος μπορεί να γράψει ένα μύνημα στο stdin αμέσως και όσες διεργασίες συμμετέχουν στον διάλογο θα το εκτυπώσουν στο stdout τους στη μορφή "Message received: <msg>".
+The first time, a new conversation with dial_id = 5 will be created.
+The second and third time, the processes will simply join the existing conversation and be able to exchange messages.
 
-Για τον τερματισμό του διαλόγους πληκτρολογήστε TERMINATE.
+After joining, a participant can immediately type a message in stdin, and all processes participating in the conversation will print it to their stdout in the format:
 
-Οι σχεδιαστικές αρχές και περισσότερες πληροφορίες υπάρχουν στο **OS_1.pdf**
+Message received: <msg>
+
+To terminate the conversation, type TERMINATE.
+
+The design principles and more information are available in **report.pdf**.
